@@ -4,19 +4,17 @@ from PIL import Image
 import numpy as np
 import os
 
-
-classes = ['apple_braeburn', 'apple_golden_1', 'apple_golden_2', 'apple_golden_3', 'apple_granny_smith', 'apple_red_1', 'apple_red_3', 'apple_red_delicious', 'apple_red_yellow', 'apricot', 'avocado', 'avocado_ripe', 'banana', 'banana_red', 'cactus_fruit', 'cantaloupe_1', 'cantaloupe_2', 'carambula', 'cherry_1', 'cherry_2', 'cherry_rainier', 'clementine', 'cocos', 'dates', 'granadilla', 'grape_pink', 'grape_white', 'grape_white_2', 'grapefruit_pink', 'grapefruit_white', 'guava', 'huckleberry', 'kaki', 'kiwi', 'kumquats', 'lemon', 'lemon_meyer', 'limes', 'litchi', 'mandarine', 'mango', 'maracuja', 'nectarine', 'orange', 'papaya', 'passion_fruit', 'peach', 'peach_flat', 'pear', 'pear_abate', 'pear_monster', 'pear_williams', 'pepino', 'pineapple', 'pitahaya_red', 'plum', 'pomegranate', 'quince', 'raspberry', 'salak', 'strawberry', 'apple_red_2', 'tamarillo', 'tangelo']
+classes = ['apple_braeburn', 'apple_golden_1', 'apple_golden_2', 'apple_golden_3', 'apple_granny_smith', 'apple_red_1', 'apple_red_2', 'apple_red_3', 'apple_red_delicious', 'apple_red_yellow', 'apricot', 'avocado', 'avocado_ripe', 'banana', 'banana_red', 'cactus_fruit', 'cantaloupe_1', 'cantaloupe_2', 'carambula', 'cherry_1', 'cherry_2', 'cherry_rainier', 'cherry_wax_black', 'cherry_wax_red', 'cherry_wax_yellow', 'clementine', 'cocos', 'dates', 'granadilla', 'grape_pink', 'grape_white', 'grape_white_2', 'grape_white_2', 'grapefruit_pink', 'grapefruit_white', 'guava', 'huckleberry', 'kaki', 'kiwi', 'kumquats', 'lemon', 'lemon_meyer', 'limes', 'lychee', 'mandarine', 'mango', 'maracuja', 'melon_piel_de_sapo', 'mulberry', 'nectarine', 'orange', 'papaya', 'passion_fruit', 'peach', 'peach_flat', 'pear', 'pear_abate', 'pear_monster', 'pear_williams', 'pepino', 'physalis', 'physalis_with_husk', 'pineapple', 'pineapple_mini', 'pitahaya_red', 'plum', 'pomegranate', 'quince', 'rambutan', 'raspberry', 'salak', 'strawberry', 'strawberry_wedge', 'tamarillo', 'tangelo', 'walnut']
+NUM_LABELS = len(classes)
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 TRAINING_DATA_FILE_PATH = os.path.join(PROJECT_ROOT, 'fruits-360/Training')
-VALIDATION_DATA_FILE_PATH = os.path.join(PROJECT_ROOT, 'fruits-360/Validation')
-SESSION_NUM = '0'
+TEST_DATA_FILE_PATH = os.path.join(PROJECT_ROOT, 'fruits-360/Test')
+NUM_CHANNELS = 3
 BATCH_SIZE = 60
 IMAGE_SIZE = 100
-NUM_LABELS = len(classes)
+dropout_rate = 0.5
 learning_rate = 0.0001
-NUM_CHANNELS = 3
-SEED = 42
-NUM_RUN_IMAGES = 1
+SESSION_NUM = '5'
 
 
 def get_pixel_values(path):
@@ -36,7 +34,7 @@ def get_jpg_paths(directory):
     return file_paths
 
 
-def get_validation_paths(path):
+def get_paths(path):
     training_labels = []
     file_paths = []
     counter = 0
@@ -56,11 +54,9 @@ def get_validation_paths(path):
     return file_paths, training_labels
 
 
-def get_test_train_paths(path):
+def get_paths(path):
     training_file_paths = []
-    test_file_paths = []
     training_labels = []
-    test_labels = []
     dir_file_paths = []
     dir_labels = []
     counter = 0
@@ -71,12 +67,8 @@ def get_test_train_paths(path):
             if previous_dir == '':
                 previous_dir = dirName
             elif dirName != previous_dir:
-                num_train = int(math.ceil(len(dir_file_paths) * 0.8))
-                num_test = int(math.floor(len(dir_file_paths) * 0.2))
-                training_file_paths.append(dir_file_paths[:num_train])
-                test_file_paths.append(dir_file_paths[:num_test])
-                test_labels.append(dir_labels[:num_test])
-                training_labels.append(dir_labels[:num_train])
+                training_file_paths.append(dir_file_paths)
+                training_labels.append(dir_labels)
                 counter += 1
                 previous_dir = dirName
                 dir_file_paths = []
@@ -86,10 +78,8 @@ def get_test_train_paths(path):
                 np.put(labels_array, counter, 1)
                 dir_labels.append(labels_array)
     training_labels = [item for sublist in training_labels for item in sublist]
-    test_file_paths = [item for sublist in test_file_paths for item in sublist]
     training_file_paths = [item for sublist in training_file_paths for item in sublist]
-    test_labels = [item for sublist in test_labels for item in sublist]
-    return training_file_paths, training_labels, test_file_paths, test_labels
+    return training_file_paths, training_labels
 
 
 def get_pixs_from_file_paths(file_paths):

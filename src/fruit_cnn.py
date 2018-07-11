@@ -34,6 +34,7 @@ def create_new_dense_layer(input_data, input_size, output_size, name="dense"):
 
 
 def train_model():
+    training = tf.placeholder_with_default(True, shape=(), name='training')
     x = tf.placeholder(tf.float32, [None, 100, 100, 3], name='x')
     x_shaped = tf.reshape(x, [-1, 100, 100, 3], name='x_reshaped')
     y = tf.placeholder(tf.float32, [None, NUM_LABELS], name='labels')
@@ -45,25 +46,26 @@ def train_model():
 
     # 25 * 25 because the pool layer will produce a 25 * 25 matrix
     flattened = tf.reshape(layer2, [-1, 25 * 25 * 64], name='flatterned')
+    flattened_dropped = tf.layers.dropout(flattened, dropout_rate, training=training)
 
     # setup some weights and bias values for this layer, then activate with ReLU
     # 1000 neurons in hidden layers
-    dense_layer1 = create_new_dense_layer(flattened, 25 * 25 * 64, 1000, name='dl1')
-    dense_layer1 = tf.nn.relu(dense_layer1, name='relu')
+    dense_layer1 = create_new_dense_layer(flattened_dropped, 25 * 25 * 64, 1000, name='dl1')
+    dense_layer1_dropped = tf.layers.dropout(dense_layer1, dropout_rate, training=training)
+    dense_layer1_rnn = tf.nn.relu(dense_layer1_dropped, name='relu')
 
     # another layer with softmax activations
-    dense_layer2 = create_new_dense_layer(dense_layer1, 1000, NUM_LABELS, name='dl2')
+    dense_layer2 = create_new_dense_layer(dense_layer1_rnn, 1000, NUM_LABELS, name='dl2')
     y_ = tf.nn.softmax(dense_layer2, name='predictions')
 
     with tf.name_scope('xent'):
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense_layer2, labels=y), name='xent')
     tf.summary.scalar("cross_entropy", cross_entropy)
 
-    # Get test/training file paths and labels
-    training_file_paths, training_labels, test_file_paths, test_labels = get_test_train_paths(TRAINING_DATA_FILE_PATH)
+    # Get training file paths and labels
+    training_file_paths, training_labels = get_paths(TRAINING_DATA_FILE_PATH)
     # Shuffle file paths and labels
     training_file_paths, training_labels = shuffle_list(training_file_paths, training_labels)
-    test_file_paths, test_labels = shuffle_list(test_file_paths, test_labels)
 
     with tf.name_scope('train'):
         optimiser = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
@@ -93,53 +95,40 @@ def train_model():
             writer.add_summary(s, batch)
             _, cost = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
             print("Batch:", (batch + 1), "cost: {:.3f}".format(cost))
-
-        total_test_batches = int(len(test_labels) / BATCH_SIZE)
-        print('There are {:} test batches.'.format(total_test_batches))
-        test_accs = []
-        for batch in range(total_test_batches):
-            print('TEST BATCH NUM : {:}'.format(batch + 1))
-            batch_file_paths, batch_labels = get_pixels_and_labels(test_file_paths, test_labels, batch, BATCH_SIZE)
-            batch_x = get_pixs_from_file_paths(batch_file_paths)
-            batch_y = np.asarray(batch_labels)
-            test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
-            test_accs.append(test_acc)
-            print("Batch:", (batch + 1), "test accuracy: {:.3f}".format(test_acc))
         saver.save(sess, os.path.join(PROJECT_ROOT, 'model_checkpoint/cnn', SESSION_NUM, 'model'))
-        # Get the average test accuracy accross all batches
-        av_test_acc= sum(test_accs) / len(test_accs)
-        print("Test set Accuracy: {:.3f}".format(av_test_acc))
         print("\nTraining complete!")
 
 
 def restore_model():
     tf.reset_default_graph()
-    checkpoint_dir = os.path.join(PROJECT_ROOT, 'model_checkpoint/cnn/0')
+    checkpoint_dir = os.path.join(PROJECT_ROOT, 'model_checkpoint/cnn', SESSION_NUM)
     meta_data_file = os.path.join(checkpoint_dir, 'model.meta')
     checkpoint = tf.train.import_meta_graph(meta_data_file)
     return checkpoint, checkpoint_dir
 
 
-def validate_model():
-    validation_file_paths, validation_labels = get_validation_paths(VALIDATION_DATA_FILE_PATH)
-    total_validation_batches = int(len(validation_labels) / BATCH_SIZE)
-    print('There are {:} validation batches.'.format(total_validation_batches))
+def test_model():
+    test_file_paths, test_labels = get_paths(TEST_DATA_FILE_PATH)
+    test_file_paths, test_labels = shuffle_list(test_file_paths, test_labels)
+
+    total_test_batches = int(len(test_labels) / BATCH_SIZE)
+    print('There are {:} test batches.'.format(total_test_batches))
     checkpoint, checkpoint_dir = restore_model()
     test_accs = []
     with tf.Session() as sess:
         print('Restoring Model.')
         checkpoint.restore(sess, tf.train.latest_checkpoint(checkpoint_dir))
         print('Model Restored.')
-        for batch in range(total_validation_batches):
+        for batch in range(total_test_batches):
             print('TEST BATCH NUM : {:}'.format(batch + 1))
-            batch_file_paths, batch_labels = get_pixels_and_labels(validation_file_paths, validation_labels, batch, BATCH_SIZE)
+            batch_file_paths, batch_labels = get_pixels_and_labels(test_file_paths, test_labels, batch, BATCH_SIZE)
             batch_x = get_pixs_from_file_paths(batch_file_paths)
             batch_y = np.asarray(batch_labels)
             test_acc = sess.run("accuracy/accuracy:0", feed_dict={"x:0": batch_x, "labels:0": batch_y})
             print("Batch:", (batch + 1), "test accuracy: {:.3f}".format(test_acc))
             test_accs.append(test_acc)
         av_test_acc= sum(test_accs) / len(test_accs)
-        print("Validation set accuracy: {:.3f}".format(av_test_acc))
+        print("Test set accuracy: {:.3f}".format(av_test_acc))
 
 
 def run_model(image_directory):
@@ -197,5 +186,5 @@ if __name__ == "__main__":
         run_model(input_image_directory)
     elif sys.argv[1] == 'train':
         train_model()
-    elif sys.argv[1] == 'validate':
-        validate_model()
+    elif sys.argv[1] == 'test':
+        test_model()
