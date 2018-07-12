@@ -124,7 +124,7 @@ def test_model():
             batch_file_paths, batch_labels = get_pixels_and_labels(test_file_paths, test_labels, batch, BATCH_SIZE)
             batch_x = get_pixs_from_file_paths(batch_file_paths)
             batch_y = np.asarray(batch_labels)
-            test_acc = sess.run("accuracy/accuracy:0", feed_dict={"x:0": batch_x, "labels:0": batch_y})
+            test_acc = sess.run("accuracy/accuracy:0", feed_dict={"x:0": batch_x, "labels:0": batch_y, 'training:0': False})
             print("Batch:", (batch + 1), "test accuracy: {:.3f}".format(test_acc))
             test_accs.append(test_acc)
         av_test_acc= sum(test_accs) / len(test_accs)
