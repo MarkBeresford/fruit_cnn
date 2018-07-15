@@ -17,7 +17,7 @@ classes = ['apple_braeburn', 'apple_golden_1', 'apple_golden_2', 'apple_golden_3
            'strawberry_wedge', 'tamarillo', 'tangelo', 'walnut']
 NUM_LABELS = len(classes)
 SRC_FOLDER_PATH = str(Path(__file__).parents[2])
-SESSION_NUM = '30'
+SESSION_NUM = '0'
 TRAINING_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Training')
 TEST_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Test')
 CHECKPOINT_PATH = os.path.join(SRC_FOLDER_PATH, 'cnn/model_checkpoint/cnn', SESSION_NUM, 'model')
