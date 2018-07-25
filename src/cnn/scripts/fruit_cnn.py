@@ -1,6 +1,6 @@
 import tensorflow as tf
 import sys
-from utils import *
+from cnn_utils import *
 
 
 def create_new_conv_layer(input_data, num_input_channels, num_filters, filter_shape, pool_shape, name="conv"):
@@ -33,7 +33,7 @@ def create_new_dense_layer(input_data, input_size, output_size, name="dense"):
         return dense_layer
 
 
-def train_model():
+def train_cnn():
     training = tf.placeholder_with_default(True, shape=(), name='training')
     x = tf.placeholder(tf.float32, [None, 100, 100, 3], name='x')
     x_shaped = tf.reshape(x, [-1, 100, 100, 3], name='x_reshaped')
@@ -64,7 +64,6 @@ def train_model():
     tf.summary.scalar("cross_entropy", cross_entropy)
 
     # Get training file paths and labels
-    print(TRAINING_DATA_FILE_PATH)
     training_file_paths, training_labels = get_paths(TRAINING_DATA_FILE_PATH)
     # Shuffle file paths and labels
     training_file_paths, training_labels = shuffle_list(training_file_paths, training_labels)
@@ -87,13 +86,13 @@ def train_model():
         writer.add_graph(sess.graph)
 
         total_train_batches = int(len(training_labels) / BATCH_SIZE)
-        print('There are {:} traing batches.'.format(total_train_batches))
+        print('There are {:} training batches.'.format(total_train_batches))
         for batch in range(total_train_batches):
             print('TRAINING BATCH NUM : {:}'.format(batch + 1))
             batch_file_paths, batch_labels = get_file_paths_and_labels(training_file_paths, training_labels, batch, BATCH_SIZE)
             # This will generate three sets of pixels, one for the original image, one for the 'darker' image and one
             # for the 'lighter' image.
-            batch_x = get_pixs_from_file_paths(batch_file_paths, training=True)
+            batch_x = get_pixels_from_file_paths_cnn(batch_file_paths, training=True)
             multi_batch_labels = []
             # This is nessasary to replicate the labels for the 'darker' and 'lighter' images
             for label in batch_labels:
@@ -107,7 +106,7 @@ def train_model():
         print("\nTraining complete!")
 
 
-def restore_model():
+def restore_cnn():
     tf.reset_default_graph()
     checkpoint_dir = os.path.join(CHECKPOINT_PATH)
     meta_data_file = os.path.join(checkpoint_dir, 'model.meta')
@@ -115,13 +114,13 @@ def restore_model():
     return checkpoint, checkpoint_dir
 
 
-def test_model():
+def test_cnn():
     test_file_paths, test_labels = get_paths(TEST_DATA_FILE_PATH)
     test_file_paths, test_labels = shuffle_list(test_file_paths, test_labels)
 
     total_test_batches = int(len(test_labels) / BATCH_SIZE)
     print('There are {:} test batches.'.format(total_test_batches))
-    checkpoint, checkpoint_dir = restore_model()
+    checkpoint, checkpoint_dir = restore_cnn()
     test_accs = []
     with tf.Session() as sess:
         print('Restoring Model.')
@@ -130,7 +129,7 @@ def test_model():
         for batch in range(total_test_batches):
             print('TEST BATCH NUM : {:}'.format(batch + 1))
             batch_file_paths, batch_labels = get_file_paths_and_labels(test_file_paths, test_labels, batch, BATCH_SIZE)
-            batch_x = get_pixs_from_file_paths(batch_file_paths, training=False)
+            batch_x = get_pixels_from_file_paths_cnn(batch_file_paths, training=False)
             batch_y = np.asarray(batch_labels)
             test_acc = sess.run("accuracy/accuracy:0",
                                 feed_dict={"x:0": batch_x, "labels:0": batch_y, 'training:0': False})
@@ -140,8 +139,8 @@ def test_model():
         print("Test set accuracy: {:.3f}".format(av_test_acc))
 
 
-def run_model(image_directory):
-    checkpoint, checkpoint_dir = restore_model()
+def run_cnn(image_directory):
+    checkpoint, checkpoint_dir = restore_cnn()
 
     with tf.Session() as sess:
         print('Restoring Model.')
@@ -192,8 +191,8 @@ def run_model(image_directory):
 if __name__ == "__main__":
     if sys.argv[1] == 'predict':
         input_image_directory = sys.argv[2]
-        run_model(input_image_directory)
+        run_cnn(input_image_directory)
     elif sys.argv[1] == 'train':
-        train_model()
+        train_cnn()
     elif sys.argv[1] == 'test':
-        test_model()
+        test_cnn()

@@ -1,8 +1,9 @@
-from random import shuffle
-from PIL import Image
-import numpy as np
 import os
+import numpy as np
+from PIL import Image
+from itertools import izip
 from pathlib import Path
+
 
 classes = ['apple_braeburn', 'apple_golden_1', 'apple_golden_2', 'apple_golden_3', 'apple_granny_smith', 'apple_red_1',
            'apple_red_2', 'apple_red_3', 'apple_red_delicious', 'apple_red_yellow', 'apricot', 'avocado',
@@ -17,40 +18,17 @@ classes = ['apple_braeburn', 'apple_golden_1', 'apple_golden_2', 'apple_golden_3
            'strawberry_wedge', 'tamarillo', 'tangelo', 'walnut']
 NUM_LABELS = len(classes)
 SRC_FOLDER_PATH = str(Path(__file__).parents[2])
+NUM_CHANNELS = 3
+IMAGE_SIZE = 100
 SESSION_NUM = '0'
+dropout_rate = 0.5
+learning_rate = 0.0001
 TRAINING_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Training')
 TEST_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Test')
 CHECKPOINT_PATH = os.path.join(SRC_FOLDER_PATH, 'cnn/model_checkpoint/cnn', SESSION_NUM, 'model')
 SUMMERY_PATH = os.path.join(SRC_FOLDER_PATH, 'cnn/tmp/summary', SESSION_NUM)
-NUM_CHANNELS = 3
-BATCH_SIZE = 20
-IMAGE_SIZE = 100
-dropout_rate = 0.5
-learning_rate = 0.0001
-
-
-def get_darker_and_lighter_images(action, jpgfile):
-    pixels = list(jpgfile.getdata())
-    width, height = jpgfile.size
-    new_image_list = []
-
-    brightness_multiplier = 1.0
-    extent = 0.5
-
-    if action is 'brighten':
-        brightness_multiplier += extent
-    else:
-        brightness_multiplier -= extent
-
-    # for each pixel, append the brightened or darkened version to the new image list
-    for pixel in pixels:
-        new_pixel = (int(pixel[0] * brightness_multiplier),
-                     int(pixel[1] * brightness_multiplier),
-                     int(pixel[2] * brightness_multiplier))
-
-        new_image_list.append(new_pixel)
-    new_image_list = [new_image_list[i * width:(i + 1) * width] for i in xrange(height)]
-    return new_image_list
+BATCH_SIZE = 2501
+n_components = 2500
 
 
 def get_pixel_values(jpgfile):
@@ -60,13 +38,37 @@ def get_pixel_values(jpgfile):
     return pixels
 
 
-def get_jpg_paths(directory):
-    file_paths = []
-    for dirName, subdirList, fileList in os.walk(directory, topdown=False):
-        for file in fileList:
-            if ".jpg" in file.lower():  # check whether the file's a jpg image
-                file_paths.append(os.path.join(dirName, file))
-    return file_paths
+def get_pixels_from_file_paths_kmeans(file_paths):
+    training_data_bytearray = []
+    for file_path in file_paths:
+        jpgfile = Image.open(file_path)
+        images = []
+        orig_pixels = get_pixel_values(jpgfile)
+        orig_pixels = np.asarray(orig_pixels)
+        orig_pixels = orig_pixels.ravel()
+        images.append(orig_pixels)
+        for image in images:
+            averaged_image = []
+            for pixel_1, pixel_2, pixel_3 in izip(*[iter(image)] * 3):
+                averaged_image.append(float((pixel_1 + pixel_2 + pixel_3) / 3))
+            training_data_bytearray.append(averaged_image)
+    return training_data_bytearray
+
+
+def get_darker_and_lighter_images(action, pixels):
+    new_image_list = []
+
+    brightness_multiplier = 1.0
+    extent = 0.5
+
+    if action is 'brighten':
+        brightness_multiplier += extent
+    else:
+        brightness_multiplier -= extent
+    for pixel in pixels:
+        new_pixel = pixel * brightness_multiplier
+        new_image_list.append(new_pixel)
+    return new_image_list
 
 
 def get_paths(path):
@@ -76,7 +78,7 @@ def get_paths(path):
     previous_dir = ''
     for dirName, subdirList, fileList in os.walk(path, topdown=False):
         for file in fileList:
-            labels_array = np.zeros(len(classes))
+            # labels_array = np.zeros(len(classes))
             if previous_dir == '':
                 previous_dir = dirName
             elif dirName != previous_dir:
@@ -84,41 +86,8 @@ def get_paths(path):
                 previous_dir = dirName
             if ".jpg" in file.lower():  # check whether the file's a jpg image
                 file_paths.append(os.path.join(dirName, file))
-                np.put(labels_array, counter, 1)
-                training_labels.append(labels_array)
+                training_labels.append(counter)
     return file_paths, training_labels
-
-
-def get_pixs_from_file_paths(file_paths, training):
-    training_data_bytearray = []
-    for file_path in file_paths:
-        jpgfile = Image.open(file_path)
-        images = []
-        orig_pixels = get_pixel_values(jpgfile)
-        images.append(orig_pixels)
-        if training:
-            brighter_pixels = get_darker_and_lighter_images('brighten', jpgfile)
-            images.append(brighter_pixels)
-            darken_pixels = get_darker_and_lighter_images('darken', jpgfile)
-            images.append(darken_pixels)
-        for image in images:
-            img_array = []
-            for row in image:
-                row_array = []
-                for pixel_set in row:
-                    pixel_set_floats = []
-                    for pixel in pixel_set:
-                        pixel_set_floats.append(float(pixel))
-                    row_array.append(pixel_set_floats)
-                img_array.append(row_array)
-            training_data_bytearray.append(img_array)
-    return training_data_bytearray
-
-
-def shuffle_list(*ls):
-    l = list(zip(*ls))
-    shuffle(l)
-    return zip(*l)
 
 
 def get_file_paths_and_labels(file_paths, labels, batch, BATCH_SIZE):
@@ -127,11 +96,3 @@ def get_file_paths_and_labels(file_paths, labels, batch, BATCH_SIZE):
     batch_labels = labels[first_instance:first_instance + BATCH_SIZE]
     return batch_file_paths, batch_labels
 
-
-def black_background_thumbnail(path_to_image, thumbnail_size=(IMAGE_SIZE, IMAGE_SIZE)):
-    background = Image.new('RGBA', thumbnail_size, "black")
-    source_image = Image.open(path_to_image).convert("RGBA")
-    source_image.thumbnail(thumbnail_size)
-    (w, h) = source_image.size
-    background.paste(source_image, ((thumbnail_size[0] - w) / 2, (thumbnail_size[1] - h) / 2))
-    return background
