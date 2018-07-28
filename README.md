@@ -1,6 +1,6 @@
 # fruit_cnn
 
-The data used in this model can be found [here](https://www.kaggle.com/moltean/fruits).
+The data used for this repo can be found [here](https://www.kaggle.com/moltean/fruits).
 
 I achieved 96% accuracy on the test set.
 
