@@ -1,6 +1,11 @@
 import tensorflow as tf
 import sys
 from cnn_utils import *
+import logging
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def create_new_conv_layer(input_data, num_input_channels, num_filters, filter_shape, pool_shape, name="conv"):
@@ -41,7 +46,6 @@ def train_cnn():
 
     # create both convolutional layers
     layer1 = create_new_conv_layer(x_shaped, NUM_CHANNELS, 32, [5, 5], [8, 8], name='l1')
-    # Eventualy remove this print statement
     layer2 = create_new_conv_layer(layer1, 32, 64, [5, 5], [8, 8], name='l2')
 
     # 25 * 25 because the pool layer will produce a 25 * 25 matrix
@@ -86,9 +90,9 @@ def train_cnn():
         writer.add_graph(sess.graph)
 
         total_train_batches = int(len(training_labels) / BATCH_SIZE)
-        print('There are {:} training batches.'.format(total_train_batches))
+        logger.info('There are {:} training batches.'.format(total_train_batches))
         for batch in range(total_train_batches):
-            print('TRAINING BATCH NUM : {:}'.format(batch + 1))
+            logger.info('TRAINING BATCH NUM : {:}'.format(batch + 1))
             batch_file_paths, batch_labels = get_file_paths_and_labels(training_file_paths, training_labels, batch, BATCH_SIZE)
             # This will generate three sets of pixels, one for the original image, one for the 'darker' image and one
             # for the 'lighter' image.
@@ -101,9 +105,9 @@ def train_cnn():
             s = sess.run(merged_summary, feed_dict={x: batch_x, y: batch_y})
             writer.add_summary(s, batch)
             _, cost = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
-            print("Batch:", (batch + 1), "cost: {:.3f}".format(cost))
+            logger.info("Batch:", (batch + 1), "cost: {:.3f}".format(cost))
         saver.save(sess, CHECKPOINT_PATH)
-        print("\nTraining complete!")
+        logger.info("Training complete!")
 
 
 def restore_cnn():
@@ -119,33 +123,33 @@ def test_cnn():
     test_file_paths, test_labels = shuffle_list(test_file_paths, test_labels)
 
     total_test_batches = int(len(test_labels) / BATCH_SIZE)
-    print('There are {:} test batches.'.format(total_test_batches))
+    logger.info('There are {:} test batches.'.format(total_test_batches))
     checkpoint, checkpoint_dir = restore_cnn()
     test_accs = []
     with tf.Session() as sess:
-        print('Restoring Model.')
+        logger.info('Restoring Model.')
         checkpoint.restore(sess, tf.train.latest_checkpoint(checkpoint_dir))
-        print('Model Restored.')
+        logger.info('Model Restored.')
         for batch in range(total_test_batches):
-            print('TEST BATCH NUM : {:}'.format(batch + 1))
+            logger.info('TEST BATCH NUM : {:}'.format(batch + 1))
             batch_file_paths, batch_labels = get_file_paths_and_labels(test_file_paths, test_labels, batch, BATCH_SIZE)
             batch_x = get_pixels_from_file_paths_cnn(batch_file_paths, training=False)
             batch_y = np.asarray(batch_labels)
             test_acc = sess.run("accuracy/accuracy:0",
                                 feed_dict={"x:0": batch_x, "labels:0": batch_y, 'training:0': False})
-            print("Batch:", (batch + 1), "test accuracy: {:.3f}".format(test_acc))
+            logger.info("Batch:", (batch + 1), "test accuracy: {:.3f}".format(test_acc))
             test_accs.append(test_acc)
         av_test_acc = sum(test_accs) / len(test_accs)
-        print("Test set accuracy: {:.3f}".format(av_test_acc))
+        logger.info("Test set accuracy: {:.3f}".format(av_test_acc))
 
 
 def run_cnn(image_directory):
     checkpoint, checkpoint_dir = restore_cnn()
 
     with tf.Session() as sess:
-        print('Restoring Model.')
+        logger.info('Restoring Model.')
         checkpoint.restore(sess, tf.train.latest_checkpoint(checkpoint_dir))
-        print('Model Restored.')
+        logger.info('Model Restored.')
 
         file_paths = get_jpg_paths(image_directory)
         resized_file_paths = []
@@ -164,7 +168,7 @@ def run_cnn(image_directory):
                     rgb_im.save(outfile)
                     resized_file_paths.append(outfile)
                 except IOError:
-                    print "Failed to convert image : '%s'" % infile
+                    logger.info("Failed to convert image : '%s'" % infile)
 
         images_bytearray = []
         for file_path in resized_file_paths:
@@ -182,10 +186,10 @@ def run_cnn(image_directory):
         predictions = sess.run('predictions:0', feed_dict={'x:0': images_bytearray})
         for prediction in range(len(predictions)):
             image_num = prediction + 1
-            print('#######################  IMAGE NUMBER : %s   #######################' % image_num)
-            print('Predictions:')
+            logger.info('#######################  IMAGE NUMBER : %s   #######################' % image_num)
+            logger.info('Predictions:')
             for fruit_num in range(len(classes)):
-                print('%s : %s' % (classes[fruit_num], predictions[prediction][fruit_num]))
+                logger.info('%s : %s' % (classes[fruit_num], predictions[prediction][fruit_num]))
 
 
 if __name__ == "__main__":
