@@ -168,7 +168,7 @@ def run_cnn(image_directory):
                     rgb_im.save(outfile)
                     resized_file_paths.append(outfile)
                 except IOError:
-                    logger.info("Failed to convert image : '%s'" % infile)
+                    logger.error("Failed to convert image : '%s'" % infile)
 
         images_bytearray = []
         for file_path in resized_file_paths:
