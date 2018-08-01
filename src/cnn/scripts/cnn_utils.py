@@ -26,8 +26,8 @@ dropout_rate = 0.5
 learning_rate = 0.0001
 TRAINING_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Training')
 TEST_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Test')
-CHECKPOINT_PATH = os.path.join(SRC_FOLDER_PATH, 'cnn/model_checkpoint/cnn', SESSION_NUM, 'model')
-SUMMERY_PATH = os.path.join(SRC_FOLDER_PATH, 'cnn/tmp/summary', SESSION_NUM)
+CHECKPOINT_PATH = os.path.join(SRC_FOLDER_PATH, 'cnn/model_checkpoint', SESSION_NUM)
+SUMMERY_PATH = os.path.join(SRC_FOLDER_PATH, 'cnn/summary', SESSION_NUM)
 
 
 def get_pixels_from_file_paths_cnn(file_paths, training):

@@ -1,9 +1,11 @@
+import logging
 import tensorflow as tf
 import sys
 from cnn_utils import *
-import logging
+from tqdm import *
 
 
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -86,13 +88,17 @@ def train_cnn():
     with tf.Session() as sess:
         sess.run(init_op)
         merged_summary = tf.summary.merge_all()
+        print(SUMMERY_PATH)
+        if not os.path.isdir(SUMMERY_PATH):
+            os.makedirs(SUMMERY_PATH)
         writer = tf.summary.FileWriter(SUMMERY_PATH)
         writer.add_graph(sess.graph)
 
         total_train_batches = int(len(training_labels) / BATCH_SIZE)
-        logger.info('There are {:} training batches.'.format(total_train_batches))
+        logger.info('There are %s training batches.'% str(total_train_batches))
+        pbar = tqdm(total=total_train_batches, position=1)
         for batch in range(total_train_batches):
-            logger.info('TRAINING BATCH NUM : {:}'.format(batch + 1))
+            pbar.update(1)
             batch_file_paths, batch_labels = get_file_paths_and_labels(training_file_paths, training_labels, batch, BATCH_SIZE)
             # This will generate three sets of pixels, one for the original image, one for the 'darker' image and one
             # for the 'lighter' image.
@@ -105,7 +111,8 @@ def train_cnn():
             s = sess.run(merged_summary, feed_dict={x: batch_x, y: batch_y})
             writer.add_summary(s, batch)
             _, cost = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
-            logger.info("Batch:", (batch + 1), "cost: {:.3f}".format(cost))
+        if not os.path.isdir(CHECKPOINT_PATH):
+            os.makedirs(CHECKPOINT_PATH)
         saver.save(sess, CHECKPOINT_PATH)
         logger.info("Training complete!")
 
@@ -123,24 +130,24 @@ def test_cnn():
     test_file_paths, test_labels = shuffle_list(test_file_paths, test_labels)
 
     total_test_batches = int(len(test_labels) / BATCH_SIZE)
-    logger.info('There are {:} test batches.'.format(total_test_batches))
+    logger.info('There are %s test batches.' % str(total_test_batches))
     checkpoint, checkpoint_dir = restore_cnn()
     test_accs = []
     with tf.Session() as sess:
         logger.info('Restoring Model.')
         checkpoint.restore(sess, tf.train.latest_checkpoint(checkpoint_dir))
         logger.info('Model Restored.')
+        pbar = tqdm(total=total_test_batches, position=1)
         for batch in range(total_test_batches):
-            logger.info('TEST BATCH NUM : {:}'.format(batch + 1))
+            pbar.update(1)
             batch_file_paths, batch_labels = get_file_paths_and_labels(test_file_paths, test_labels, batch, BATCH_SIZE)
             batch_x = get_pixels_from_file_paths_cnn(batch_file_paths, training=False)
             batch_y = np.asarray(batch_labels)
             test_acc = sess.run("accuracy/accuracy:0",
                                 feed_dict={"x:0": batch_x, "labels:0": batch_y, 'training:0': False})
-            logger.info("Batch:", (batch + 1), "test accuracy: {:.3f}".format(test_acc))
             test_accs.append(test_acc)
         av_test_acc = sum(test_accs) / len(test_accs)
-        logger.info("Test set accuracy: {:.3f}".format(av_test_acc))
+        logger.info("Test set accuracy: %s" % str(av_test_acc))
 
 
 def run_cnn(image_directory):
@@ -154,7 +161,7 @@ def run_cnn(image_directory):
         file_paths = get_jpg_paths(image_directory)
         resized_file_paths = []
         resized_directory = os.path.join(image_directory, 'resized_files')
-        if not os.path.exists(resized_directory):
+        if os.path.isdir(resized_directory):
             os.makedirs(resized_directory)
 
         # Makes images have 100x100 pixels
