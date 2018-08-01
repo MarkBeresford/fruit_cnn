@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 from itertools import izip
 from pathlib import Path
+from sklearn.preprocessing import normalize
 
 
 classes = ['apple_braeburn', 'apple_golden_1', 'apple_golden_2', 'apple_golden_3', 'apple_granny_smith', 'apple_red_1',
@@ -54,6 +55,7 @@ def get_pixels_from_file_paths_kmeans(file_paths, training):
             for pixel_1, pixel_2, pixel_3 in izip(*[iter(image)] * 3):
                 averaged_image.append(float((pixel_1 + pixel_2 + pixel_3) / 3))
             training_data_bytearray.append(averaged_image)
+    training_data_bytearray = normalize(training_data_bytearray)
     return training_data_bytearray
 
 

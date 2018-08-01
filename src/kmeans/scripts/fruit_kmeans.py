@@ -24,9 +24,9 @@ def get_pca_pixels_and_labels(file_paths, labels, folder):
     pixel_path = os.path.join(SRC_FOLDER_PATH, 'kmeans/tmp', folder)
     labels_path = os.path.join(SRC_FOLDER_PATH, 'kmeans/tmp', folder)
     if not os.path.isdir(pixel_path):
-        os.mkdir(pixel_path)
+        os.makedirs(pixel_path)
     if not os.path.isdir(labels_path):
-        os.mkdir(labels_path)
+        os.makedirs(labels_path)
 
     logger.info('There are %s Batches.' % str(num_batches))
     # The times three is to account for the darker and lighter images produced for each image
