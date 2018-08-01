@@ -81,8 +81,6 @@ def train_kmeans(pca_training_pix_path, pca_test_pix_path, pca_test_labels_path)
     logger.info("Training complete!")
     logger.info("Predicting...")
     predictions = clf.predict(test_pixels)
-    print(predictions)
-    print(extended_test_labels_pickled)
     batch_accuracy = accuracy_score(extended_test_labels_pickled, predictions)
     logger.info("Test set accuracy: {:.3f}".format(batch_accuracy))
 
