@@ -1,8 +1,8 @@
 # fruit_ml
+This repository is a collection of machine learning techniques I have implemented (with varying success) to identify different fruit in images.
+The data used for this repo can be found [here](https://www.kaggle.com/moltean/fruits).
 
 ## cnn
-
-The data used for this repo can be found [here](https://www.kaggle.com/moltean/fruits).
 
 I achieved 96% accuracy on the test set using the cnn.
 
