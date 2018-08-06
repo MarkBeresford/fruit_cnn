@@ -26,6 +26,7 @@ def train_ae():
     training_file_paths, training_labels = get_paths(TRAINING_DATA_FILE_PATH)
     test_file_paths, test_labels = get_paths(TEST_DATA_FILE_PATH)
 
+    # TODO: Save Weights using saverg
     saver = tf.train.Saver()
 
     with tf.Session() as sess:
@@ -40,11 +41,8 @@ def train_ae():
         train_pbar = tqdm(total=num_train_batches, position=1)
         for batch in range(num_train_batches):
             train_pbar.update(1)
-            # This will generate three sets of pixels, one for the original image, one for the 'darker' image and one
-            # for the 'lighter' image.
             training_batch_file_paths, training_batch_labels = get_file_paths_and_labels(training_file_paths, training_labels, batch, BATCH_SIZE)
             training_batch_file_paths_reshaped = reshape_batch(training_batch_file_paths)
-            # This is nessasary to replicate the labels for the 'darker' and 'lighter' images
             sess.run(training_op, feed_dict={x: training_batch_file_paths_reshaped})
 
         num_test_batches = int(len(test_labels) / BATCH_SIZE)
