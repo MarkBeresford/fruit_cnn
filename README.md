@@ -1,4 +1,6 @@
-# fruit_cnn
+# fruit_ml
+
+## cnn
 
 The data used for this repo can be found [here](https://www.kaggle.com/moltean/fruits).
 
