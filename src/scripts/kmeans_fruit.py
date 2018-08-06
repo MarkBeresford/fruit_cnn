@@ -90,10 +90,10 @@ if __name__ == "__main__":
     test_folder = 'test_%s_comps' % n_components
     if sys.argv[1] == 'pca':
         # Training PCA
-        training_file_paths, training_labels = get_paths(TRAINING_DATA_FILE_PATH)
+        training_file_paths, training_labels = get_paths_kmeans(TRAINING_DATA_FILE_PATH)
         get_pca_pixels_and_labels(training_file_paths, training_labels, train_folder)
         # Test PCA
-        test_file_paths, test_labels = get_paths(TEST_DATA_FILE_PATH)
+        test_file_paths, test_labels = get_paths_kmeans(TEST_DATA_FILE_PATH)
         get_pca_pixels_and_labels(test_file_paths, test_labels, test_folder)
     if sys.argv[1] == 'train':
         train_pixel_path = os.path.join(SRC_FOLDER_PATH, 'kmeans/tmp', train_folder, 'pixels.p')

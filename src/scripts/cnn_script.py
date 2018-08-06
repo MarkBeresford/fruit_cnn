@@ -71,8 +71,6 @@ def train_cnn():
 
     # Get training file paths and labels
     training_file_paths, training_labels = get_paths(TRAINING_DATA_FILE_PATH)
-    # Shuffle file paths and labels
-    training_file_paths, training_labels = shuffle_list(training_file_paths, training_labels)
 
     with tf.name_scope('train'):
         optimiser = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy)
@@ -88,7 +86,6 @@ def train_cnn():
     with tf.Session() as sess:
         sess.run(init_op)
         merged_summary = tf.summary.merge_all()
-        print(SUMMERY_PATH)
         if not os.path.isdir(SUMMERY_PATH):
             os.makedirs(SUMMERY_PATH)
         writer = tf.summary.FileWriter(SUMMERY_PATH)
@@ -102,7 +99,7 @@ def train_cnn():
             batch_file_paths, batch_labels = get_file_paths_and_labels(training_file_paths, training_labels, batch, BATCH_SIZE)
             # This will generate three sets of pixels, one for the original image, one for the 'darker' image and one
             # for the 'lighter' image.
-            batch_x = get_pixels_from_file_paths_cnn(batch_file_paths, training=True)
+            batch_x = get_pixels_from_file_paths(batch_file_paths, training=True)
             multi_batch_labels = []
             # This is nessasary to replicate the labels for the 'darker' and 'lighter' images
             for label in batch_labels:
@@ -127,7 +124,6 @@ def restore_cnn():
 
 def test_cnn():
     test_file_paths, test_labels = get_paths(TEST_DATA_FILE_PATH)
-    test_file_paths, test_labels = shuffle_list(test_file_paths, test_labels)
 
     total_test_batches = int(len(test_labels) / BATCH_SIZE)
     logger.info('There are %s test batches.' % str(total_test_batches))
@@ -141,7 +137,7 @@ def test_cnn():
         for batch in range(total_test_batches):
             pbar.update(1)
             batch_file_paths, batch_labels = get_file_paths_and_labels(test_file_paths, test_labels, batch, BATCH_SIZE)
-            batch_x = get_pixels_from_file_paths_cnn(batch_file_paths, training=False)
+            batch_x = get_pixels_from_file_paths(batch_file_paths, training=False)
             batch_y = np.asarray(batch_labels)
             test_acc = sess.run("accuracy/accuracy:0",
                                 feed_dict={"x:0": batch_x, "labels:0": batch_y, 'training:0': False})
