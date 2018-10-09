@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from random import shuffle
+from sklearn.utils import shuffle
 from PIL import Image
 
 
@@ -8,13 +8,14 @@ classes = ['apple_braeburn', 'apple_golden_1', 'apple_golden_2', 'apple_golden_3
            'apple_red_2', 'apple_red_3', 'apple_red_delicious', 'apple_red_yellow', 'apricot', 'avocado',
            'avocado_ripe', 'banana', 'banana_red', 'cactus_fruit', 'cantaloupe_1', 'cantaloupe_2', 'carambula',
            'cherry_1', 'cherry_2', 'cherry_rainier', 'cherry_wax_black', 'cherry_wax_red', 'cherry_wax_yellow',
-           'clementine', 'cocos', 'dates', 'granadilla', 'grape_pink', 'grape_white', 'grape_white_2', 'grape_white_2',
+           'clementine', 'cocos', 'dates', 'granadilla', 'grape_pink', 'grape_white', 'grape_white_2',
            'grapefruit_pink', 'grapefruit_white', 'guava', 'huckleberry', 'kaki', 'kiwi', 'kumquats', 'lemon',
            'lemon_meyer', 'limes', 'lychee', 'mandarine', 'mango', 'maracuja', 'melon_piel_de_sapo', 'mulberry',
            'nectarine', 'orange', 'papaya', 'passion_fruit', 'peach', 'peach_flat', 'pear', 'pear_abate',
            'pear_monster', 'pear_williams', 'pepino', 'physalis', 'physalis_with_husk', 'pineapple', 'pineapple_mini',
            'pitahaya_red', 'plum', 'pomegranate', 'quince', 'rambutan', 'raspberry', 'salak', 'strawberry',
-           'strawberry_wedge', 'tamarillo', 'tangelo', 'walnut']
+           'strawberry_wedge', 'tamarillo', 'tangelo', 'tomato_1', 'tomato_2', 'tomato_3', 'tomato_4',
+           'tomato_cherry_red', 'tomato_maroon', 'walnut']
 NUM_LABELS = len(classes)
 SRC_FOLDER_PATH = os.path.dirname(os.getcwd())
 IMAGE_SIZE = 100
@@ -22,10 +23,9 @@ TRAINING_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Training')
 TEST_DATA_FILE_PATH = os.path.join(SRC_FOLDER_PATH, 'fruits-360/Test')
 
 
-def get_darker_and_lighter_images(action, jpgfile):
+def get_darker_and_lighter_images(action, jpgfile, images_array):
     pixels = list(jpgfile.getdata())
     width, height = jpgfile.size
-    new_image_list = []
 
     brightness_multiplier = 1.0
     extent = 0.5
@@ -35,21 +35,21 @@ def get_darker_and_lighter_images(action, jpgfile):
     else:
         brightness_multiplier -= extent
 
-    # for each pixel, append the brightened or darkened version to the new image list
+    modified_image = []
     for pixel in pixels:
-        new_pixel = (int(pixel[0] * brightness_multiplier),
-                     int(pixel[1] * brightness_multiplier),
-                     int(pixel[2] * brightness_multiplier))
+        modified_pixel = [pixel_value * brightness_multiplier for pixel_value in pixel]
+        modified_image.append(modified_pixel)
 
-        new_image_list.append(new_pixel)
-    new_image_list = [new_image_list[i * width:(i + 1) * width] for i in xrange(height)]
-    return new_image_list
+    modified_image = [modified_image[i * width:(i + 1) * width] for i in range(height)]
+    images_array.append(modified_image)
+    return images_array
+
 
 
 def get_pixel_values(jpgfile):
     pixels = list(jpgfile.getdata())
     width, height = jpgfile.size
-    pixels = [pixels[i * width:(i + 1) * width] for i in xrange(height)]
+    pixels = [pixels[i * width:(i + 1) * width] for i in range(height)]
     return pixels
 
 
@@ -60,12 +60,6 @@ def get_jpg_paths(directory):
             if ".jpg" in file.lower():  # check whether the file's a jpg image
                 file_paths.append(os.path.join(dirName, file))
     return file_paths
-
-
-def shuffle_list(*ls):
-    l = list(zip(*ls))
-    shuffle(l)
-    return zip(*l)
 
 
 def get_file_paths_and_labels(file_paths, labels, batch, BATCH_SIZE):
@@ -80,7 +74,7 @@ def black_background_thumbnail(path_to_image, thumbnail_size=(IMAGE_SIZE, IMAGE_
     source_image = Image.open(path_to_image).convert("RGBA")
     source_image.thumbnail(thumbnail_size)
     (w, h) = source_image.size
-    background.paste(source_image, ((thumbnail_size[0] - w) / 2, (thumbnail_size[1] - h) / 2))
+    background.paste(source_image, (int((thumbnail_size[0] - w) / 2), int((thumbnail_size[1] - h) / 2)))
     return background
 
 
@@ -91,7 +85,7 @@ def get_paths(path):
     previous_dir = ''
     for dirName, subdirList, fileList in os.walk(path, topdown=False):
         for file in fileList:
-            labels_array = np.zeros(len(classes))
+            labels_array_zeroes = np.zeros(len(classes))
             if previous_dir == '':
                 previous_dir = dirName
             elif dirName != previous_dir:
@@ -99,35 +93,19 @@ def get_paths(path):
                 previous_dir = dirName
             if ".jpg" in file.lower():  # check whether the file's a jpg image
                 paths.append(os.path.join(dirName, file))
-                np.put(labels_array, counter, 1)
-                labels.append(labels_array)
-    # Shuffle Paths
-    paths, labels = shuffle_list(paths, labels)
+                np.put(labels_array_zeroes, counter, 1)
+                labels.append(labels_array_zeroes)
+    paths, labels = shuffle(paths, labels)
     return paths, labels
 
 
 def get_pixels_from_file_paths(file_paths, training):
-    training_data_bytearray = []
     for file_path in file_paths:
         jpgfile = Image.open(file_path)
-        images = []
         orig_pixels = get_pixel_values(jpgfile)
-        images.append(orig_pixels)
+        images = [orig_pixels]
         if training:
-            brighter_pixels = get_darker_and_lighter_images('brighten', jpgfile)
-            images.append(brighter_pixels)
-            darken_pixels = get_darker_and_lighter_images('darken', jpgfile)
-            images.append(darken_pixels)
-        for image in images:
-            img_array = []
-            for row in image:
-                row_array = []
-                for pixel_set in row:
-                    pixel_set_floats = []
-                    for pixel in pixel_set:
-                        pixel_set_floats.append(float(pixel))
-                    row_array.append(pixel_set_floats)
-                img_array.append(row_array)
-            training_data_bytearray.append(img_array)
-    return training_data_bytearray
-
+            images = get_darker_and_lighter_images('brighten', jpgfile, images)
+            images = get_darker_and_lighter_images('darken', jpgfile, images)
+        images = np.asfarray(images)
+    return images

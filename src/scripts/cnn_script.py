@@ -5,10 +5,6 @@ from cnn_utils import *
 from tqdm import *
 
 
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
 
 def create_new_conv_layer(input_data, num_input_channels, num_filters, filter_shape, pool_shape, name="conv"):
     with tf.name_scope(name):
@@ -110,29 +106,28 @@ def train_cnn():
             _, cost = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
         if not os.path.isdir(CHECKPOINT_PATH):
             os.makedirs(CHECKPOINT_PATH)
-        saver.save(sess, CHECKPOINT_PATH)
+
+        saver.save(sess, os.path.join(CHECKPOINT_PATH, "fruit_ml"))
         logger.info("Training complete!")
 
 
 def restore_cnn():
-    tf.reset_default_graph()
-    checkpoint_dir = os.path.join(CHECKPOINT_PATH)
-    meta_data_file = os.path.join(checkpoint_dir, 'model.meta')
+    logger.info('Restoring Model.')
+    meta_data_file = os.path.join(CHECKPOINT_PATH, 'fruit_ml.meta')
     checkpoint = tf.train.import_meta_graph(meta_data_file)
-    return checkpoint, checkpoint_dir
+    logger.info('Model Restored.')
+    return checkpoint
 
 
 def test_cnn():
     test_file_paths, test_labels = get_paths(TEST_DATA_FILE_PATH)
-
     total_test_batches = int(len(test_labels) / BATCH_SIZE)
-    logger.info('There are %s test batches.' % str(total_test_batches))
-    checkpoint, checkpoint_dir = restore_cnn()
+
     test_accs = []
     with tf.Session() as sess:
-        logger.info('Restoring Model.')
-        checkpoint.restore(sess, tf.train.latest_checkpoint(checkpoint_dir))
-        logger.info('Model Restored.')
+        cnn_checkpoint = restore_cnn()
+        cnn_checkpoint.restore(sess, tf.train.latest_checkpoint(CHECKPOINT_PATH))
+        logger.info('There are {} test batches.'.format(str(total_test_batches)))
         pbar = tqdm(total=total_test_batches, position=1)
         for batch in range(total_test_batches):
             pbar.update(1)
@@ -143,63 +138,57 @@ def test_cnn():
                                 feed_dict={"x:0": batch_x, "labels:0": batch_y, 'training:0': False})
             test_accs.append(test_acc)
         av_test_acc = sum(test_accs) / len(test_accs)
-        logger.info("Test set accuracy: %s" % str(av_test_acc))
+    logger.info('\n')
+    logger.info('Test set accuracy: {}%'.format(str(av_test_acc * 100)))
 
 
-def run_cnn(image_directory):
-    checkpoint, checkpoint_dir = restore_cnn()
-
+def generate_predictions_using_cnn(image_directory):
     with tf.Session() as sess:
-        logger.info('Restoring Model.')
-        checkpoint.restore(sess, tf.train.latest_checkpoint(checkpoint_dir))
-        logger.info('Model Restored.')
-
+        cnn_checkpoint = restore_cnn()
+        cnn_checkpoint.restore(sess, tf.train.latest_checkpoint(CHECKPOINT_PATH))
         file_paths = get_jpg_paths(image_directory)
         resized_file_paths = []
         resized_directory = os.path.join(image_directory, 'resized_files')
-        if os.path.isdir(resized_directory):
+        if not os.path.isdir(resized_directory):
             os.makedirs(resized_directory)
 
         # Makes images have 100x100 pixels
-        for infile in file_paths:
-            split_infile = infile.split('/')
-            outfile = os.path.join(resized_directory, split_infile[-1])
-            if infile != outfile:
-                try:
-                    im = black_background_thumbnail(infile)
-                    rgb_im = im.convert('RGB')
-                    rgb_im.save(outfile)
-                    resized_file_paths.append(outfile)
-                except IOError:
-                    logger.error("Failed to convert image : '%s'" % infile)
+        for original_file_path in file_paths:
+            print(original_file_path)
+            resized_file_path = os.path.join(resized_directory, original_file_path.split('/')[-1])
+            try:
+                im = black_background_thumbnail(original_file_path)
+                rgb_im = im.convert('RGB')
+                rgb_im.save(resized_file_path)
+                resized_file_paths.append(resized_file_path)
+            except IOError:
+                logger.error("Failed to convert image : '%s'" % original_file_path)
+        pixels_single_array = get_pixels_from_file_paths(resized_file_paths, training=False)
 
-        images_bytearray = []
-        for file_path in resized_file_paths:
-            img_array = []
-            for row in get_pixel_values(file_path):
-                row_array = []
-                for pixel_set in row:
-                    pixel_set_floats = []
-                    for pixel in pixel_set:
-                        pixel_set_floats.append(float(pixel))
-                    row_array.append(pixel_set_floats)
-                img_array.append(row_array)
-            images_bytearray.append(img_array)
+        # predictions = sess.run('predictions:0', feed_dict={'x:0': pixels_single_array})
+        # for prediction in range(len(predictions)):
+        #     image_num = prediction + 1
+        #     logger.info('#######################  IMAGE NUMBER : {}   #######################'.format(image_num))
+        #     logger.info('Predictions:')
+        #     for fruit_num in range(len(classes)):
+        #         logger.info('%s : %s' % (classes[fruit_num], predictions[prediction][fruit_num]))
 
-        predictions = sess.run('predictions:0', feed_dict={'x:0': images_bytearray})
-        for prediction in range(len(predictions)):
-            image_num = prediction + 1
-            logger.info('#######################  IMAGE NUMBER : %s   #######################' % image_num)
-            logger.info('Predictions:')
-            for fruit_num in range(len(classes)):
-                logger.info('%s : %s' % (classes[fruit_num], predictions[prediction][fruit_num]))
+def utilise_cnn(user_function):
+    if user_function == 'predict':
+        logger.info('Runing Prediction Method.')
+        input_image_directory = sys.argv[2]
+        generate_predictions_using_cnn(input_image_directory)
+    elif user_function == 'train':
+        logger.info('Runing Training Method.')
+        train_cnn()
+    elif user_function == 'test':
+        logger.info('Runing Testing Method.')
+        test_cnn()
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == 'predict':
-        input_image_directory = sys.argv[2]
-        run_cnn(input_image_directory)
-    elif sys.argv[1] == 'train':
-        train_cnn()
-    elif sys.argv[1] == 'test':
-        test_cnn()
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    user_function = sys.argv[1]
+    utilise_cnn(user_function)
