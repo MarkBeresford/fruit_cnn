@@ -14,7 +14,7 @@ python cnn_script.py train
 ``` 
 for validation (testing against the validation data set): 
 ```
-python cnn_script.py train
+python cnn_script.py test
 ```
 and to use the model to predict which fruit is in an image: 
 ```
