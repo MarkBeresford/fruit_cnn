@@ -154,7 +154,6 @@ def generate_predictions_using_cnn(image_directory):
 
         # Makes images have 100x100 pixels
         for original_file_path in file_paths:
-            print(original_file_path)
             resized_file_path = os.path.join(resized_directory, original_file_path.split('/')[-1])
             try:
                 im = black_background_thumbnail(original_file_path)
