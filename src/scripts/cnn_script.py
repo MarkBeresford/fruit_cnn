@@ -164,13 +164,14 @@ def generate_predictions_using_cnn(image_directory):
                 logger.error("Failed to convert image : '%s'" % original_file_path)
         pixels_single_array = get_pixels_from_file_paths(resized_file_paths, training=False)
 
-        # predictions = sess.run('predictions:0', feed_dict={'x:0': pixels_single_array})
-        # for prediction in range(len(predictions)):
-        #     image_num = prediction + 1
-        #     logger.info('#######################  IMAGE NUMBER : {}   #######################'.format(image_num))
-        #     logger.info('Predictions:')
-        #     for fruit_num in range(len(classes)):
-        #         logger.info('%s : %s' % (classes[fruit_num], predictions[prediction][fruit_num]))
+        predictions = sess.run('predictions:0', feed_dict={'x:0': pixels_single_array})
+        for prediction in range(len(predictions)):
+            image_num = prediction + 1
+            logger.info('#######################  IMAGE NUMBER : {}   #######################'.format(image_num))
+            logger.info('Predictions:')
+            for fruit_num in range(len(classes)):
+                logger.info('%s : %s' % (classes[fruit_num], predictions[prediction][fruit_num]))
+
 
 def utilise_cnn(user_function):
     if user_function == 'predict':
